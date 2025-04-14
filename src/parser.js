@@ -5,6 +5,7 @@ const xml2js = require('xml2js');
 const shared = require('./shared');
 const settings = require('./settings');
 const translator = require('./translator');
+const authors = require('./frontmatter/authors');
 
 // dynamically requires all frontmatter getters
 const frontmatterGetters = requireDirectory(module, './frontmatter', { recurse: false });
@@ -41,7 +42,7 @@ function getPostTypes(channelData, config) {
 		// effectively this will be 'post', 'page', and custom post types
 		const types = channelData
 			.map(item => item.post_type[0])
-			.filter(type => !['attachment', 'revision', 'nav_menu_item', 'custom_css', 'customize_changeset'].includes(type));
+			.filter(type => !['attachment', 'revision', 'taxopress_logs', 'nav_menu_item', 'custom_css', 'customize_changeset', 'wp_global_styles', 'es_template', 'flamingo_contact', 'flamingo_inbound', 'wp_navigation'].includes(type));
 		return [...new Set(types)]; // remove duplicates
 	} else {
 		// just plain old vanilla "post" posts
@@ -60,7 +61,7 @@ function collectPosts(channelData, postTypes, config) {
 	let allPosts = [];
 	postTypes.forEach(postType => {
 		const postsForType = getItemsOfType(channelData, postType)
-			.filter(postData => postData.status[0] !== 'trash' && postData.status[0] !== 'draft')
+			.filter(postData => postData.status[0] !== 'trash') // && postData.status[0] !== 'draft'
 			.map(postData => ({
 				// raw post data, used by frontmatter getters
 				data: postData,
@@ -74,6 +75,13 @@ function collectPosts(channelData, postTypes, config) {
 					type: postType,
 					imageUrls: [] // possibly set later in mergeImagesIntoPosts()
 				},
+
+				// if the type of the post is either "post" or "page", we can get the rating
+				// and rating count
+				wpdiscuz_post_rating: postType === 'post' || postType === 'page' ? get_wpdiscuz_post_rating(postData) : '',
+				wpdiscuz_post_rating_count: postType === 'post' || postType === 'page' ? get_wpdiscuz_post_rating_count(postData) : '',
+
+				authors: postData.authors,
 
 				// contents of the post in markdown
 				content: translator.getPostContent(postData, turndownService, config)
@@ -92,11 +100,70 @@ function collectPosts(channelData, postTypes, config) {
 	return allPosts;
 }
 
+function get_wpdiscuz_post_rating(postData) {
+	// if the post doesn't have a rating, log that and return an empty string
+	// if (postData.wpdiscuz_post_rating === undefined) {
+	// 	console.log(postData.post_name[0] + ' had no wpdisduz_post_rating.');
+	// 	return '';
+	// }
+
+	// // if it does have a value, return it instead
+	// try {
+	// 	return postData.wpdiscuz_post_rating;
+	// } catch (error) {
+	// 	console.info(postData);
+	// 	console.error(postData.post_name[0] + ' had an error in wpdisduz_post_rating:' + error);
+	// 	return '';
+	// }
+
+	if (postData.postmeta === undefined) {
+		return undefined;
+	}
+
+	const postmeta = postData.postmeta.find(postmeta => postmeta.meta_key[0] === 'wpdiscuz_post_rating');
+	const id = postmeta ? postmeta.meta_value[0] : null;
+
+	// console.log("Parsing rating: " + id);
+
+	return id;
+}
+
+function get_wpdiscuz_post_rating_count(postData) {
+
+	// console.log(postData.postmeta);
+
+	if (postData.postmeta === undefined) {
+		return undefined;
+	}
+
+	const postmeta = postData.postmeta.find(postmeta => postmeta.meta_key[0] === 'wpdiscuz_post_rating_count');
+	const id = postmeta ? postmeta.meta_value[0] : null;
+
+	// console.log("Parsing rating count: " + id);
+	return id;
+
+	// if (postData.wpdiscuz_post_rating_count === undefined) {
+	// 	console.log(postData.post_name[0] + ' had no wpdisduz_post_rating_count.');
+	// 	return '';
+	// }
+
+	// try {
+	// 	return postData.wpdiscuz_post_rating_count;
+	// } catch (error) {
+	// 	// console.info(postData);
+	// 	// console.error(postData.post_name[0] + ' had an error in wpdisduz_post_rating_count:' + error);
+	// 	return '';
+	// }
+}
+
 function getPostId(postData) {
 	return postData.post_id[0];
 }
 
 function getPostSlug(postData) {
+	if (!postData.post_name[0]) {
+		return postData.post_id[0];
+	}
 	return decodeURIComponent(postData.post_name[0]);
 }
 
@@ -175,15 +242,26 @@ function mergeImagesIntoPosts(images, posts) {
 function populateFrontmatter(posts) {
 	posts.forEach(post => {
 		const frontmatter = {};
+
+		// console.log("Post frontmatter fields: ");
+		// console.log({post});
+
 		settings.frontmatter_fields.forEach(field => {
 			const [key, alias] = field.split(':');
 
 			let frontmatterGetter = frontmatterGetters[key];
+
 			if (!frontmatterGetter) {
 				throw `Could not find a frontmatter getter named "${key}".`;
 			}
 
-			frontmatter[alias || key] = frontmatterGetter(post);
+			var value = frontmatterGetter(post);
+
+			if (post.data.title.indexOf("stuck") > -1) {
+			console.log("Frontmattergetting with alias " + alias + ", key: " + key + " and value: " + value);
+			}
+			
+			frontmatter[alias || key] = value;
 		});
 		post.frontmatter = frontmatter;
 	});

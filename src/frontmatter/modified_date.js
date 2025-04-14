@@ -6,12 +6,12 @@ const settings = require('../settings');
 // this value is also used for year/month folders, date prefixes, etc. as needed
 module.exports = (post) => {
 
-	if (!post.data.post_date) {
-		console.error("No post date found for post: " + post.data.title);
-		return null;
-	}
+	// console.log("Parsing modified date: ");
+	// console.log(post.data);
 
-	const dateTime = luxon.DateTime.fromFormat(post.data.post_date[0], 'yyyy-MM-dd HH:mm:ss', { zone: settings.custom_date_timezone });
+	const dateTime = luxon.DateTime.fromFormat(post.data.post_modified[0], 'yyyy-MM-dd HH:mm:ss', { zone: settings.custom_date_timezone });
+
+	// console.log("Parsed modified date: " + dateTime);
 
 	if (settings.custom_date_formatting) {
 		return dateTime.toFormat(settings.custom_date_formatting);
