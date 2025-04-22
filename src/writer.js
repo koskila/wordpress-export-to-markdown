@@ -38,7 +38,12 @@ async function processPayloadsPromise(payloads, loadFunc) {
 
 async function writeFile(destinationPath, data) {
 	await fs.promises.mkdir(path.dirname(destinationPath), { recursive: true });
-	await fs.promises.writeFile(destinationPath, data);
+	if (fs.existsSync(destinationPath)) {
+		throw new Error(`File already exists: ${destinationPath}`);
+	}
+	else {
+		await fs.promises.writeFile(destinationPath, data);
+	}
 }
 
 async function writeMarkdownFilesPromise(posts) {
@@ -117,15 +122,19 @@ async function writeImageFilesPromise(posts) {
 	// collect image data from all posts into a single flattened array of payloads
 	let existingCount = 0;
 	let delay = 0;
+
+	// console.log(posts);
+
 	const payloads = posts.flatMap((post) => {
 		const postPath = shared.buildPostPath(post);
 		const imagesDir = path.join(path.dirname(postPath), 'images');
 		return post.imageUrls.flatMap((imageUrl) => {
-			const filename = shared.getFilenameFromUrl(imageUrl);
+			const filename = post.id + "-" + shared.getFilenameFromUrl(imageUrl);
 			const destinationPath = path.join(imagesDir, filename);
 			if (checkFile(destinationPath)) {
 				// already exists, don't need to save again
 				existingCount++;
+				console.log(`Image already exists: ${destinationPath}`);
 				return [];
 			} else {
 				const payload = {

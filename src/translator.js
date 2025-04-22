@@ -108,7 +108,7 @@ function initTurndownService() {
 	return turndownService;
 }
 
-export function getPostContent(content) {
+export function getPostContent(content, id) {
 	// insert an empty div element between double line breaks
 	// this nifty trick causes turndown to keep adjacent paragraphs separated
 	// without mucking up content inside of other elements (like <code> blocks)
@@ -117,7 +117,7 @@ export function getPostContent(content) {
 	if (shared.config.saveImages === 'scraped' || shared.config.saveImages === 'all') {
 		// writeImageFile() will save all content images to a relative /images
 		// folder so update references in post content to match
-		content = content.replace(/(<img(?=\s)[^>]+?(?<=\s)src=")[^"]*?([^/"]+)("[^>]*>)/gi, '$1images/$2$3');
+		content = content.replace(/(<img(?=\s)[^>]+?(?<=\s)src=")[^"]*?([^/"]+)("[^>]*>)/gi, '$1images/' + id + '-$2$3');
 	}
 
 	// preserve "more" separator, max one per post, optionally with custom label
