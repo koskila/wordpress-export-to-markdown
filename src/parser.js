@@ -5,11 +5,7 @@ import * as data from './data.js';
 import * as frontmatter from './frontmatter.js';
 import * as shared from './shared.js';
 import * as translator from './translator.js';
-
-const shared = require('./shared');
-const settings = require('./settings');
-const translator = require('./translator');
-const authors = require('./frontmatter/authors');
+import * as settings from './settings.cjs';
 
 export async function parseFilePromise() {
 	shared.logHeading('Parsing');
@@ -46,6 +42,12 @@ function getPostTypes(allPostData) {
 			'customize_changeset',
 			'oembed_cache',
 			'user_request',
+			'taxopress_logs',
+			'es_template',
+			'flamingo_contact',
+			'flamingo_inbound',
+			'wpcf7_contact_form',
+			'wpdiscuz_form',
 			'wp_block',
 			'wp_global_styles',
 			'wp_navigation',
@@ -67,37 +69,14 @@ function getItemsOfType(allPostData, type) {
 
 function collectPosts(allPostData, postTypes) {
 	let allPosts = [];
+
 	postTypes.forEach((postType) => {
 		const postsForType = getItemsOfType(allPostData, postType)
 			//.filter((postData) => postData.childValue('status') !== 'trash')
 			//.filter((postData) => !(postType === 'page' && postData.childValue('post_name') === 'sample-page'))
+			.filter((postData) => postData.childValue('status') !== 'trash')
+			.filter((postData) => !(postType === 'page' && postData.childValue('post_name') === 'sample-page'))
 			.map((postData) => buildPost(postData));
-
-			.filter(postData => postData.status[0] !== 'trash') // && postData.status[0] !== 'draft'
-			.map(postData => ({
-				// raw post data, used by frontmatter getters
-				data: postData,
-
-				// meta data isn't written to file, but is used to help with other things
-				meta: {
-					id: getPostId(postData),
-					slug: getPostSlug(postData),
-					coverImageId: getPostCoverImageId(postData),
-					coverImage: undefined, // possibly set later in mergeImagesIntoPosts()
-					type: postType,
-					imageUrls: [] // possibly set later in mergeImagesIntoPosts()
-				},
-
-				// if the type of the post is either "post" or "page", we can get the rating
-				// and rating count
-				wpdiscuz_post_rating: postType === 'post' || postType === 'page' ? get_wpdiscuz_post_rating(postData) : '',
-				wpdiscuz_post_rating_count: postType === 'post' || postType === 'page' ? get_wpdiscuz_post_rating_count(postData) : '',
-
-				authors: postData.authors,
-
-				// contents of the post in markdown
-				content: translator.getPostContent(postData, turndownService, config)
-			}));
 
 		if (postsForType.length > 0) {
 			if (postType === 'post') {
@@ -115,63 +94,91 @@ function collectPosts(allPostData, postTypes) {
 	return allPosts;
 }
 
+function buildPost(data) {
+
+	return {
+
+		// full raw post data
+		data,
+
+		// body content converted to markdown
+		content: translator.getPostContent(data.childValue('encoded'), data.childValue('post_id')),
+
+		// particularly useful values for all sorts of things
+		type: data.childValue('post_type'),
+		id: data.childValue('post_id'),
+		status: data.childValue('status'),
+		slug: decodeURIComponent(data.childValue('post_name')),
+		date: getPostDate(data),
+		modified_date: getPostModifiedDate(data),
+		coverImageId: getPostMetaValue(data, '_thumbnail_id'),
+
+		// these are possibly set later in mergeImagesIntoPosts()
+		coverImage: undefined,
+		imageUrls: [],
+
+		// wpdiscuz_post_rating: data.childValue('post_type') === 'post' || data.childValue('post_type') === 'page' ? get_wpdiscuz_post_rating(data) : '',
+		// wpdiscuz_post_rating_count: data.childValue('post_type') === 'post' || data.childValue('post_type') === 'page' ? get_wpdiscuz_post_rating_count(data) : '',
+
+		wpdiscuz_post_rating: getPostMetaValue(data, 'wpdiscuz_post_rating'),
+		wpdiscuz_post_rating_count: getPostMetaValue(data, 'wpdiscuz_post_rating_count'),
+
+		authors: data.authors,
+
+	};
+}
+
+function getPostDate(data) {
+	const date = luxon.DateTime.fromRFC2822(data.childValue('pubDate'), { zone: shared.config.timezone });
+	return date.isValid ? date : undefined;
+}
+
+function getPostModifiedDate(data) {
+	const date = luxon.DateTime.fromRFC2822(data.childValue('post_modified'), { zone: shared.config.timezone });
+	return date.isValid ? date : undefined;
+}
+
 function get_wpdiscuz_post_rating(postData) {
-	// if the post doesn't have a rating, log that and return an empty string
-	// if (postData.wpdiscuz_post_rating === undefined) {
-	// 	console.log(postData.post_name[0] + ' had no wpdisduz_post_rating.');
-	// 	return '';
-	// }
 
-	// // if it does have a value, return it instead
-	// try {
-	// 	return postData.wpdiscuz_post_rating;
-	// } catch (error) {
-	// 	console.info(postData);
-	// 	console.error(postData.post_name[0] + ' had an error in wpdisduz_post_rating:' + error);
-	// 	return '';
-	// }
-
-	if (postData.postmeta === undefined) {
-		return undefined;
+	try {
+		var d = postData.children('postmeta');
+		// if the post doesn't have a rating, log that and return an empty string
+		if (postData.wpdiscuz_post_rating === undefined) {
+			console.log(postData.childValue('post_name') + ' had no wpdisduz_post_rating.');
+			return '';
+		}
+		var value = d[0].childValue('meta_key', 'wpdiscuz_post_rating');
+		return value;
+	}
+	catch (error) {
+		console.error(postData.childValue('post_name') + ' had an error in wpdisduz_post_rating:' + error);
+		return '';
 	}
 
-	const postmeta = postData.postmeta.find(postmeta => postmeta.meta_key[0] === 'wpdiscuz_post_rating');
-	const id = postmeta ? postmeta.meta_value[0] : null;
-
-	// console.log("Parsing rating: " + id);
-
-	return id;
 }
 
 function get_wpdiscuz_post_rating_count(postData) {
 
-	// console.log(postData.postmeta);
+	try {
+		var d = postData.children('postmeta');
+		// if the post doesn't have a rating, log that and return an empty string
+		if (postData.wpdiscuz_post_rating_count === undefined) {
+			console.log(postData.childValue('post_name') + ' had no wpdisduz_post_rating_count.');
+			return '';
+		}
 
-	if (postData.postmeta === undefined) {
-		return undefined;
+		// if it does have a value, return it instead
+		var value = d[0].childValue('meta_key', 'wpdiscuz_post_rating_count');
+		return value;
 	}
-
-	const postmeta = postData.postmeta.find(postmeta => postmeta.meta_key[0] === 'wpdiscuz_post_rating_count');
-	const id = postmeta ? postmeta.meta_value[0] : null;
-
-	// console.log("Parsing rating count: " + id);
-	return id;
-
-	// if (postData.wpdiscuz_post_rating_count === undefined) {
-	// 	console.log(postData.post_name[0] + ' had no wpdisduz_post_rating_count.');
-	// 	return '';
-	// }
-
-	// try {
-	// 	return postData.wpdiscuz_post_rating_count;
-	// } catch (error) {
-	// 	// console.info(postData);
-	// 	// console.error(postData.post_name[0] + ' had an error in wpdisduz_post_rating_count:' + error);
-	// 	return '';
-	// }
+	catch (error) {
+		console.error(postData.childValue('post_name') + ' had an error in wpdisduz_post_rating_count:' + error);
+		return '';
+	}
 }
 
 function getPostId(postData) {
+	console.log(postData);
 	return postData.post_id[0];
 }
 
@@ -210,7 +217,7 @@ function collectScrapedImages(allPostData, postTypes) {
 	postTypes.forEach((postType) => {
 		getItemsOfType(allPostData, postType).forEach((postData) => {
 			const postId = postData.childValue('post_id');
-			
+
 			const postContent = postData.childValue('encoded');
 			const scrapedUrls = [...postContent.matchAll(/<img(?=\s)[^>]+?(?<=\s)src="(.+?)"[^>]*>/gi)].map((match) => match[1]);
 			scrapedUrls.forEach((scrapedUrl) => {
@@ -263,31 +270,21 @@ function mergeImagesIntoPosts(images, posts) {
 }
 
 function populateFrontmatter(posts) {
-	posts.forEach(post => {
-		const frontmatter = {};
 
-		// console.log("Post frontmatter fields: ");
-		// console.log({post});
-
-		settings.frontmatter_fields.forEach(field => {
+	posts.forEach((post) => {
+		post.frontmatter = {};
+		shared.config.frontmatterFields.forEach((field) => {
 			const [key, alias] = field.split(':');
 
 			let frontmatterGetter = frontmatter[key];
-
 			if (!frontmatterGetter) {
 				throw `Could not find a frontmatter getter named "${key}".`;
 			}
-			
-			// frontmatter[alias || key] = value;
-			
-			post.frontmatter[alias ?? key] = frontmatterGetter(post);
-			var value = frontmatterGetter(post);
 
-			if (post.data.title.indexOf("stuck") > -1) {
-				console.log("Frontmattergetting with alias " + alias + ", key: " + key + " and value: " + value);
-			}
+			post.frontmatter[alias ?? key] = frontmatterGetter(post);
 		});
 	});
+
 }
 
 function prioritizePostType(postTypes, postType) {

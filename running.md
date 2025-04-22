@@ -9,6 +9,12 @@ Tools > Export > Download Export file
 
 npm install && node index.js
 
-node index.js --input="D:\github\koskilanet-migration\sharepointproblems.WordPress.2025-03-03.xml" --output="D:\github\koskilanet-migration\output" --post-folders=false --prefix-date=false --year-folders=false --month-folders=false --save-attached-images=true --save-scraped-images=true --include-other-types=true
+node app.js --input="../koskilanet-migration/sharepointproblems.WordPress.2025-04-22.xml" --output="../koskilanet-migration/output" --post-folders=false --prefix-date=false --date-folders=none --save-images=all --request-delay=150 --write-delay=0 --timezone="Europe/Helsinki" --include-time=true --strict-ssl=false 
 
+node app.js --input="../koskilanet-migration/sharepointproblems.WordPress.2025-04-22.xml" --output="../koskilanet-migration/output" --post-folders=false --prefix-date=false --date-folders=none --save-images=all --request-delay=150 --write-delay=0 --timezone="Europe/Helsinki" --include-time=true --strict-ssl=false --frontmatter-fields='title','date:published_date','modified_date','status:status','pinned:isFeatured','categories','authors','tags','coverImage','wpdiscuz_post_rating','wpdiscuz_post_rating_count','comments:commentArray'
+
+windows:
 robocopy D:\github\koskilanet-migration\output\post D:\github\koskilanet-blazorstatic\web\Content\Blog\
+
+macos:
+rsync -av --progress ~/repos/koskilanet-migration/output/posts/ ~/repos/koskilanet-blazorstatic/web/Content/Blog/
