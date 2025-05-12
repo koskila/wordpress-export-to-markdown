@@ -6,6 +6,7 @@ import https from 'https';
 import * as luxon from 'luxon';
 import path from 'path';
 import * as shared from './shared.js';
+import yaml from 'js-yaml'; // Add this import at the top
 
 export async function writeFilesPromise(posts) {
 	await writeMarkdownFilesPromise(posts);
@@ -76,46 +77,63 @@ async function writeMarkdownFilesPromise(posts) {
 }
 
 async function loadMarkdownFilePromise(post) {
-	let output = '---\n';
+    let output = '---\n';
 
-	Object.entries(post.frontmatter).forEach(([key, value]) => {
-		let outputValue;
-		if (Array.isArray(value)) {
+    Object.entries(post.frontmatter).forEach(([key, value]) => {
+        let outputValue;
+        if (Array.isArray(value)) {
 			if (value.length > 0) {
-				// array of one or more strings
-				outputValue = value.reduce((list, item) => `${list}\n  - "${item}"`, '');
+				// Serialize arrays properly
+				outputValue = '\n' + value
+					.map((item) => {
+						if (typeof item === 'object') {
+							// Serialize the object and indent each line properly
+							const serializedObject = yaml.dump(item, { indent: 2 }).trim();
+							return serializedObject
+								.split('\n')
+								.map((line, index) => (index === 0 ? `- ${line}` : `  ${line}`)) // Add hyphen to the first line, indent subsequent lines
+								.join('\n');
+						} else {
+							// Quote non-object items and prefix with a hyphen
+							return `- "${item}"`;
+						}
+					})
+					.join('\n');
 			}
-		} else if (Number.isInteger(value)) {
-			// output unquoted
-			outputValue = value.toString();
-		} else if (value instanceof luxon.DateTime) {
-			if (shared.config.dateFormat) {
-				outputValue = value.toFormat(shared.config.dateFormat);
-			} else {
-				outputValue = shared.config.includeTime ? value.toISO() : value.toISODate();
-			}
+        } else if (Number.isInteger(value)) {
+            // Output unquoted
+            outputValue = value.toString();
+        } else if (value instanceof luxon.DateTime) {
+            if (shared.config.dateFormat) {
+                outputValue = value.toFormat(shared.config.dateFormat);
+            } else {
+                outputValue = shared.config.includeTime ? value.toISO() : value.toISODate();
+            }
 
-			if (shared.config.quoteDate) {
-				outputValue = `"${outputValue}"`;
-			}
-		} else if (typeof value === 'boolean') {
-			// output unquoted
-			outputValue = value.toString();
-		} else {
-			// single string value
-			const escapedValue = (value ?? '').replace(/"/g, '\\"');
-			if (escapedValue.length > 0) {
-				outputValue = `"${escapedValue}"`;
-			}
-		}
+            if (shared.config.quoteDate) {
+                outputValue = `"${outputValue}"`;
+            }
+        } else if (typeof value === 'boolean') {
+            // Output unquoted
+            outputValue = value.toString();
+        } else if (typeof value === 'object' && value !== null) {
+            // Serialize objects properly
+            outputValue = `\n${yaml.dump(value, { indent: 2 }).trim()}`;
+        } else {
+            // Single string value
+            const escapedValue = (value ?? '').replace(/"/g, '\\"');
+            if (escapedValue.length > 0) {
+                outputValue = `"${escapedValue}"`;
+            }
+        }
 
-		if (outputValue !== undefined) {
-			output += `${key}: ${outputValue}\n`;
-		}
-	});
+        if (outputValue !== undefined) {
+            output += `${key}: ${outputValue}\n`;
+        }
+    });
 
-	output += `---\n\n${post.content}\n`;
-	return output;
+    output += `---\n\n${post.content}\n`;
+    return output;
 }
 
 async function writeImageFilesPromise(posts) {

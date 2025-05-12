@@ -125,6 +125,7 @@ function buildPost(data) {
 
 		wpdiscuz_post_rating: getPostMetaValue(data, 'wpdiscuz_post_rating') || '',
 		wpdiscuz_post_rating_count: getPostMetaValue(data, 'wpdiscuz_post_rating_count') || '0',
+		comments: getComments(data),
 	};
 }
 
@@ -152,6 +153,9 @@ function getPostSlug(postData) {
 	return decodeURIComponent(postData.post_name[0]);
 }
 
+function getComments(data) {
+	return data.comments;
+}
 function getPostMetaValue(data, key) {
 	const metas = data.children('postmeta');
 	const meta = metas.find((meta) => meta.childValue('meta_key') === key);
@@ -244,7 +248,47 @@ function populateFrontmatter(posts) {
 				throw `Could not find a frontmatter getter named "${key}".`;
 			}
 
-			post.frontmatter[alias ?? key] = frontmatterGetter(post);
+			let value = frontmatterGetter(post);
+
+			// Recursively process any object or value for proper YAML serialization
+			if (value !== undefined && value !== null) {
+				const processForYaml = (val) => {
+					// Handle basic types
+					if (val === null || typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') {
+						return val;
+					}
+					
+					// Handle Luxon DateTime objects
+					if (val && typeof val === 'object' && val.isValid !== undefined && typeof val.toISO === 'function') {
+						return val.toISO();
+					}
+					
+					// Handle arrays
+					if (Array.isArray(val)) {
+						return val.map(item => processForYaml(item));
+					}
+					
+					// Handle objects
+					if (typeof val === 'object') {
+						const result = {};
+						// console.log("Processing object:" + JSON.stringify(val));
+
+						// return {
+
+						for (const [k, v] of Object.entries(val)) {
+							result[k] = processForYaml(v);
+						}
+						return result;
+					}
+					
+					return val;
+				};
+				
+				value = processForYaml(value);
+			}
+			
+
+            post.frontmatter[alias ?? key] = value;
 		});
 	});
 

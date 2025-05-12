@@ -23,34 +23,40 @@ export function authors(post) {
 }
 
 export function comments(post) {
-	// console.log(post.data.comment);
-
-	if (!post.data.comment) {
+	if (!post.data.children('comment')) {
 		return [];
 	}
 
-	const comments = post.data.comment.map(comment => {
-		if (comment === null) return "null";
-		return comment.comment_content[0];
-	});
+	// parse the comment's contents, author, id and date and add them to the YAML frontmatter
+	const comments = post.data.children('comment').map(comment => {
+		if (!comment.childValue('comment_content')) return null;
+
+		return {
+			id: comment.childValue('comment_id'),
+			author: comment.childValue('comment_author'),
+			email: comment.childValue('comment_author_email'),
+			url: comment.childValue('comment_author_url'),
+			ip: comment.childValue('comment_author_IP'),
+			date: comment.childValue('comment_date'),
+			content: comment.childValue('comment_content'),
+			approved: comment.childValue('comment_approved') === '1',
+			type: comment.childValue('comment_type'),
+			parent: comment.childValue('comment_parent'),
+			userId: comment.childValue('comment_user_id')
+		};
+	}).filter(comment => comment !== null);
+
+	// properly log the comments in console
+	// console.log(`Post ${post.id} has ${comments.length} comments.`);
+	// comments.forEach(comment => {
+	// 	console.log(`Comment ID: ${comment.id}`);
+	// 	console.log(`Author: ${comment.author}`);
+	// 	console.log(`Date: ${comment.date}`);
+	// 	console.log(`Content: ${comment.content}`);
+	// 	console.log('------------------------');
+	// });
 
 	return comments;
-
-	// try {
-	// 	console.log(post.data.comment);
-	// 	if (!post || !post.data || !Array.isArray(post.data.comment)) return "none";
-
-	// 	// parse comments from xml and make them a string
-	// 	const comments = post.data.comment.map(comment => {
-	// 		if (comment === null) return "null";
-	// 		return comment;
-	// 	});
-
-	// 	return comments.join(', ').toString();
-	// } catch (err) {
-	// 	console.error('Error processing comments:', err);
-	// 	return "none"; // Return an empty array on failure
-	// }
 }
 
 export function categories(post) {
