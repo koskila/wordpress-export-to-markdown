@@ -120,11 +120,11 @@ function buildPost(data) {
 		// wpdiscuz_post_rating: data.childValue('post_type') === 'post' || data.childValue('post_type') === 'page' ? get_wpdiscuz_post_rating(data) : '',
 		// wpdiscuz_post_rating_count: data.childValue('post_type') === 'post' || data.childValue('post_type') === 'page' ? get_wpdiscuz_post_rating_count(data) : '',
 
-		wpdiscuz_post_rating: getPostMetaValue(data, 'wpdiscuz_post_rating'),
-		wpdiscuz_post_rating_count: getPostMetaValue(data, 'wpdiscuz_post_rating_count'),
 
 		authors: data.authors,
 
+		wpdiscuz_post_rating: getPostMetaValue(data, 'wpdiscuz_post_rating') || '',
+		wpdiscuz_post_rating_count: getPostMetaValue(data, 'wpdiscuz_post_rating_count') || '0',
 	};
 }
 
@@ -134,47 +134,10 @@ function getPostDate(data) {
 }
 
 function getPostModifiedDate(data) {
-	const date = luxon.DateTime.fromRFC2822(data.childValue('post_modified'), { zone: shared.config.timezone });
-	return date.isValid ? date : undefined;
-}
-
-function get_wpdiscuz_post_rating(postData) {
-
-	try {
-		var d = postData.children('postmeta');
-		// if the post doesn't have a rating, log that and return an empty string
-		if (postData.wpdiscuz_post_rating === undefined) {
-			console.log(postData.childValue('post_name') + ' had no wpdisduz_post_rating.');
-			return '';
-		}
-		var value = d[0].childValue('meta_key', 'wpdiscuz_post_rating');
-		return value;
-	}
-	catch (error) {
-		console.error(postData.childValue('post_name') + ' had an error in wpdisduz_post_rating:' + error);
-		return '';
-	}
-
-}
-
-function get_wpdiscuz_post_rating_count(postData) {
-
-	try {
-		var d = postData.children('postmeta');
-		// if the post doesn't have a rating, log that and return an empty string
-		if (postData.wpdiscuz_post_rating_count === undefined) {
-			console.log(postData.childValue('post_name') + ' had no wpdisduz_post_rating_count.');
-			return '';
-		}
-
-		// if it does have a value, return it instead
-		var value = d[0].childValue('meta_key', 'wpdiscuz_post_rating_count');
-		return value;
-	}
-	catch (error) {
-		console.error(postData.childValue('post_name') + ' had an error in wpdisduz_post_rating_count:' + error);
-		return '';
-	}
+    const dateString = data.childValue('post_modified');
+    const date = luxon.DateTime.fromFormat(dateString, 'yyyy-MM-dd HH:mm:ss', { zone: shared.config.timezone });
+    // console.log(`Modified date: ${dateString} and ${date}`);
+    return date.isValid ? date : undefined;
 }
 
 function getPostId(postData) {
