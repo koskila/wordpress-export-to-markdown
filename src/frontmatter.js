@@ -96,6 +96,16 @@ export function pinned(post) {
 	return post.data.is_sticky === '1';
 } 
 
+export function isFeatured(post) {
+	// previously parsed but not decoded, can be "true" or "false"
+	// console.log(post.isFeatured);
+	if (post.isFeatured === 'false') {
+		return false;
+	} else {
+		return true;
+	}
+}
+
 export function modified_date(post) {
 	const dateTime = post.post_modified;
 

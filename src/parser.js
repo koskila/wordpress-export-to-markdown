@@ -125,6 +125,18 @@ function buildPost(data) {
 
 		wpdiscuz_post_rating: getPostMetaValue(data, 'wpdiscuz_post_rating') || '',
 		wpdiscuz_post_rating_count: getPostMetaValue(data, 'wpdiscuz_post_rating_count') || '0',
+		
+		isFeatured: (() => {
+			const sticky = data.childValue('is_sticky');
+			if (sticky !== 0 && sticky !== '0' && sticky !== null && sticky !== undefined) {
+				//throw `Invalid value for is_sticky: ${sticky} for ${data.childValue('post_name') }`;
+				return "true";
+			}
+			else {
+				return "false";
+			}
+		})(),
+		
 		comments: getComments(data),
 	};
 }
