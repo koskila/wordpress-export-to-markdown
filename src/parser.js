@@ -102,23 +102,23 @@ function buildPost(data) {
 		data,
 
 		// body content converted to markdown
-		content: translator.getPostContent(data.childValue('encoded'), data.childValue('post_id')),
+		content: translator.getPostContent(
+			data.childValue('encoded') || '', 
+			data.childValue('post_id') || ''
+		),
 
 		// particularly useful values for all sorts of things
-		type: data.childValue('post_type'),
-		id: data.childValue('post_id'),
-		status: data.childValue('status'),
-		slug: decodeURIComponent(data.childValue('post_name')),
+		type: data.childValue('post_type') || 'post',
+		id: data.childValue('post_id') || '',
+		status: data.childValue('status') || '',
+		slug: data.childValue('post_name') ? decodeURIComponent(data.childValue('post_name')) : '',
 		date: getPostDate(data),
 		modified_date: getPostModifiedDate(data),
-		coverImageId: getPostMetaValue(data, '_thumbnail_id'),
+		coverImageId: getPostMetaValue(data, '_thumbnail_id') || '',
 
 		// these are possibly set later in mergeImagesIntoPosts()
 		coverImage: undefined,
 		imageUrls: [],
-
-		// wpdiscuz_post_rating: data.childValue('post_type') === 'post' || data.childValue('post_type') === 'page' ? get_wpdiscuz_post_rating(data) : '',
-		// wpdiscuz_post_rating_count: data.childValue('post_type') === 'post' || data.childValue('post_type') === 'page' ? get_wpdiscuz_post_rating_count(data) : '',
 
 
 		authors: data.authors,

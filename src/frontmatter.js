@@ -75,26 +75,11 @@ export function coverImage(post) {
 export function date(post) {
 	// a luxon datetime object, previously parsed
 	return post.date;
-
-		// if (!post.data.post_date) {
-		// 	console.error("No post date found for post: " + post.data.title);
-		// 	return null;
-		// }
-	
-		// const dateTime = luxon.DateTime.fromFormat(post.data.post_date[0], 'yyyy-MM-dd HH:mm:ss', { zone: settings.custom_date_timezone });
-	
-		// if (settings.custom_date_formatting) {
-		// 	return dateTime.toFormat(settings.custom_date_formatting);
-		// } else if (settings.include_time_with_date) {
-		// 	return dateTime.toISO();
-		// } else {
-		// 	return dateTime.toISODate();
-		// }
 }
 
 export function pinned(post) {
 	return post.data.is_sticky === '1';
-} 
+}
 
 export function isFeatured(post) {
 	// previously parsed but not decoded, can be "true" or "false"
