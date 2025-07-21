@@ -5,7 +5,6 @@ import * as data from './data.js';
 import * as frontmatter from './frontmatter.js';
 import * as shared from './shared.js';
 import * as translator from './translator.js';
-import * as settings from './settings.cjs';
 
 export async function parseFilePromise() {
 	shared.logHeading('Parsing');
@@ -97,7 +96,6 @@ function collectPosts(allPostData, postTypes) {
 function buildPost(data) {
 
 	return {
-
 		// full raw post data
 		data,
 
@@ -120,9 +118,6 @@ function buildPost(data) {
 		coverImage: undefined,
 		imageUrls: [],
 
-
-		authors: data.authors,
-
 		wpdiscuz_post_rating: getPostMetaValue(data, 'wpdiscuz_post_rating') || '',
 		wpdiscuz_post_rating_count: getPostMetaValue(data, 'wpdiscuz_post_rating_count') || '0',
 		
@@ -138,6 +133,16 @@ function buildPost(data) {
 		})(),
 		
 		comments: getComments(data),
+		// comments: (() => {
+		// 	try {
+		// 		return getCommentsFromXml(data);
+		// 	} catch (error) {
+		// 		console.error(`Error parsing comments: ${error.message}`);
+		// 		return [];
+		// 	}
+		// })(),
+
+		authors: data.authors || [],
 	};
 }
 
@@ -167,7 +172,41 @@ function getPostSlug(postData) {
 
 function getComments(data) {
 	return data.comments;
+
+	// return data.comments as stringified JSON
+	
+	// const comments = data.comments;
+	// if (!comments || comments.length === 0) {
+	// 	return [];
+	// }
+	// return comments.map((comment) => {
+	// 	return JSON.stringify(comment);
+	// });
 }
+
+function getCommentsFromXml(data) {
+	const comments = data.children('wp:comment');
+	if (comments.length === 0) {
+		return [];
+	}
+
+	return comments.map((comment) => {
+		const dateTime = luxon.DateTime.fromRFC2822(comment.childValue('comment_date'), { zone: shared.config.timezone });
+		
+		console.log(`Comment date: ${comment.childValue('comment_date')} and ${dateTime}`);
+
+		return JSON.stringify({
+			id: comment.childValue('comment_id'),
+			postId: comment.childValue('post_id'),
+			parentId: comment.childValue('comment_parent'),
+			date: dateTime.isValid ? dateTime.toISO() : null,
+			content: comment.childValue('comment_content'),
+			authorName: comment.childValue('comment_author'),
+			authorEmail: comment.childValue('comment_author_email'),
+		});
+	});
+}
+
 function getPostMetaValue(data, key) {
 	const metas = data.children('postmeta');
 	const meta = metas.find((meta) => meta.childValue('meta_key') === key);
@@ -286,6 +325,18 @@ function populateFrontmatter(posts) {
 						// console.log("Processing object:" + JSON.stringify(val));
 
 						// return {
+                        //         id: val.id,
+                        //         author: val.author,
+                        //         email: val.email,
+                        //         url: val.url,
+                        //         ip: val.ip,
+                        //         date: val.date,
+                        //         content: val.content,
+                        //         approved: val.approved,
+                        //         type: val.type,
+                        //         parent: val.parent,
+                        //         userId: val.userId,
+                        //     };
 
 						for (const [k, v] of Object.entries(val)) {
 							result[k] = processForYaml(v);

@@ -105,6 +105,19 @@ function initTurndownService() {
 		}
 	});
 
+	turndownService.addRule('hr', {
+		filter: 'hr',
+		replacement: () => '\n\n---\n\n'
+	});
+
+	// turndownService.addRule('[expand]', {
+	// 	filter: '[expand]',
+	// 	replacement: (content, node) => {
+	// 		console.log("expand");
+	// 		return '' + content + '\n\n';
+	// 	}
+	// });
+
 	return turndownService;
 }
 

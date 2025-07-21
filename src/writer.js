@@ -132,7 +132,13 @@ async function loadMarkdownFilePromise(post) {
         }
     });
 
-    output += `---\n\n${post.content}\n`;
+    // Ensure we do not lose the last line after <hr> (---)
+    // Remove trailing whitespace but preserve the last line
+    const content = post.content.replace(/\s+$/g, '');
+    output += `---\n\n${content}`;
+    if (!content.endsWith('\n')) {
+        output += '\n';
+    }
     return output;
 }
 
